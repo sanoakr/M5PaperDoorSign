@@ -1,5 +1,8 @@
-# SimpleAirPaper
+# M5Paper Door Sign
+THIS README IS NOT YET COMPLETED, TEMPOLARY VERSION
+
 This is simple PlatformIO project to transfer an image to M5Paper via Wi-Fi connection.
+- https://github.com/k-natori/SimpleAirPaper
 
 ## Usage
 1. Copy form.html and wifi.txt to microSD card. SSID and password should be replaced with actual ones.
