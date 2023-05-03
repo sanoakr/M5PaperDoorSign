@@ -1,0 +1,336 @@
+<!DOCTYPE html PUBLIC "ISO/IEC 15445:2000//DTD HTML//EN">
+<html>
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=480" />
+	<style>
+		body {
+			margin: 10px;
+			font-family: sans-serif;
+			font-size: large;
+		}
+
+		p {
+			margin: 1em 1em;
+		}
+
+		canvas {
+			border-style: groove;
+		}
+
+		.button-label {
+			display: inline-block;
+			margin: 0.5em 0;
+			padding: 0.5em 1em;
+			line-height: 1.4;
+			background: #ffffff;
+			color: #000000;
+			font-size: 0.95em;
+			border-radius: 2.5em;
+			border-style: solid;
+		}
+
+		.button-label.red {
+			color: #ff0000;
+		}
+
+		.button-label.blue {
+			color: #0000ff;
+		}
+
+		.button-label.large {
+			font-size: 1.2em;
+		}
+
+		.button-label:active {
+			background: #00ff00;
+			color: #000000;
+		}
+
+		.button-label input {
+			display: none;
+		}
+
+		.button-label button {
+			display: none;
+		}
+
+		.text {
+			margin: 0.2em 0.2em;
+			padding: 0.5em 0.5em;
+			font-size: 1.2em;
+		}
+	</style>
+	<title>M5Paper Room Sign</title>
+</head>
+
+<script type="text/javascript">
+	let file = null;
+	let imageData = null;
+	const MAX_WIDTH = 960;
+	const MAX_HEIGHT = 540;
+
+	function showBuiltin(board) {
+		let request = new XMLHttpRequest();
+		request.open("GET", board, true);
+		request.onload = function (oEvent) {
+			document.getElementById("builtin_message").innerText += ": Show " + board;
+		};
+		request.send();
+	}
+
+	function fileSelected() {
+		file = document.getElementById("file").files[0];
+
+		let image = new Image();
+		let reader = new FileReader();
+
+		reader.onload = () => {
+			image.src = reader.result;
+		};
+
+		image.onload = () => {
+			let x = 0,
+				y = 0,
+				width,
+				height;
+			if (image.width > image.height) {
+				let ratio = image.height / image.width;
+				width = MAX_WIDTH;
+				height = MAX_WIDTH * ratio;
+				y = (MAX_HEIGHT - height) / 2;
+			} else {
+				let ratio = image.width / image.height;
+				width = MAX_HEIGHT * ratio;
+				height = MAX_HEIGHT;
+				x = (MAX_WIDTH - width) / 2;
+			}
+			let canvas = document.getElementById("canvas");
+			let context = canvas.getContext("2d");
+			context.clearRect(0, 0, MAX_WIDTH, MAX_HEIGHT);
+			context.drawImage(
+				image,
+				0,
+				0,
+				image.width,
+				image.height,
+				x,
+				y,
+				width,
+				height
+			);
+			imageData = context.getImageData(0, 0, MAX_WIDTH, MAX_HEIGHT);
+			makeCanvasDitherGray();
+			document.getElementById("upload-label").style.visibility = "visible";
+			document.getElementById("original-label").style.visibility = "visible";
+			document.getElementById("gray-label").style.visibility = "visible";
+			document.getElementById("dither-label").style.visibility = "visible";
+			document.getElementById("binary-label").style.visibility = "visible";
+		};
+		reader.readAsDataURL(file);
+	}
+
+	function makeCanvasOriginal() {
+		if (imageData == null) return;
+		let canvas = document.getElementById("canvas");
+		let context = canvas.getContext("2d");
+		context.putImageData(imageData, 0, 0);
+	}
+
+	function makeCanvasFlatGray() {
+		makeCanvasGray(false, false, false);
+	}
+
+	function makeCanvasDitherGray() {
+		makeCanvasGray(true, true, false);
+	}
+
+	function makeCanvasBinary() {
+		makeCanvasGray(true, true, true);
+	}
+
+	function makeCanvasGray(highContrast, dithering, binaryColor) {
+		if (imageData == null) return;
+		let canvas = document.getElementById("canvas");
+		let context = canvas.getContext("2d");
+		let newData = context.createImageData(MAX_WIDTH, MAX_HEIGHT);
+
+		// Put gray values into array
+		let grayArray = new Float32Array(MAX_WIDTH * MAX_HEIGHT);
+		let minGray = 255,
+			maxGray = 0;
+		for (let i = 0; i < imageData.data.length; i += 4) {
+			let y =
+				0.2126 * imageData.data[i] +
+				0.7152 * imageData.data[i + 1] +
+				0.0722 * imageData.data[i + 2];
+			if (highContrast) y = gammaTranslate(y);
+			grayArray[i / 4] = y;
+			if (y < minGray) minGray = y;
+			if (y > maxGray) maxGray = y;
+		}
+
+		// Normalize and translate gamma
+		if (highContrast) {
+			grayArray.forEach(function (value, index) {
+				grayArray[index] = gammaTranslate(
+					(value - minGray) * (255 / (maxGray - minGray))
+				);
+			});
+		}
+
+		// Paint using Floyd–Steinberg dithering
+		for (let i = 0; i < imageData.data.length; i += 4) {
+			let grayLocation = i / 4;
+			let xLocation = grayLocation % MAX_WIDTH;
+			let yLocation = Math.floor(grayLocation / MAX_WIDTH);
+
+			let y = grayArray[grayLocation];
+			let resultY;
+			if (binaryColor)
+				resultY = Math.floor(y / 128) * 255; // Binary color 0 or 255
+			else resultY = Math.floor((y + 1) / 16 + 1) * 16 - 1; // 4-bit gray
+			if (dithering) {
+				let quant_error = y - resultY;
+				if (xLocation < MAX_WIDTH - 1)
+					grayArray[grayLocation] += (7 / 16) * quant_error;
+				if (yLocation < MAX_HEIGHT - 1) {
+					if (xLocation > 0)
+						grayArray[MAX_WIDTH * (yLocation + 1) + xLocation - 1] +=
+						(3 / 16) * quant_error;
+					grayArray[MAX_WIDTH * (yLocation + 1) + xLocation] +=
+						(5 / 16) * quant_error;
+					if (xLocation < MAX_WIDTH - 1)
+						grayArray[MAX_WIDTH * (yLocation + 1) + xLocation + 1] +=
+						(1 / 16) * quant_error;
+				}
+			}
+			newData.data[i] = resultY;
+			newData.data[i + 1] = resultY;
+			newData.data[i + 2] = resultY;
+			newData.data[i + 3] = imageData.data[i + 3];
+		}
+		context.putImageData(newData, 0, 0);
+	}
+
+	function gammaTranslate(y) {
+		// 0 <= y <= 255
+		if (y < 16 * 4) {
+			return y * 0.7;
+		} else if (y < 16 * 12) {
+			let minY = 0.7 * 16 * 4;
+			let maxY = 255 - 0.7 * 16 * 4;
+			let factor = (maxY - minY) / (16 * 12 - 16 * 4);
+			return (y - 16 * 4) * factor + minY;
+		} else {
+			return 255 - (255 - y) * 0.7;
+		}
+	}
+
+	function upload_text() {
+		document.getElementById("text").value = "Hello, World!!!";
+	}
+
+	function upload() {
+		let canvas = document.getElementById("canvas");
+		let base64 = canvas.toDataURL("image/png");
+
+		let barr, bin, i, len;
+		bin = atob(base64.split("base64,")[1]);
+		len = bin.length;
+		barr = new Uint8Array(len);
+		i = 0;
+		while (i < len) {
+			barr[i] = bin.charCodeAt(i);
+			i++;
+		}
+		let blob = new Blob([barr], {
+			type: "image/png"
+		});
+
+		if (blob != null) {
+			document.getElementById("file-label").style.visibility = "hidden";
+			document.getElementById("upload-label").style.visibility = "hidden";
+			document.getElementById("original-label").style.visibility = "hidden";
+			document.getElementById("gray-label").style.visibility = "hidden";
+			document.getElementById("dither-label").style.visibility = "hidden";
+			document.getElementById("binary-label").style.visibility = "hidden";
+			document.getElementById("message").innerText = "Uploading...";
+			let request = new XMLHttpRequest();
+			request.open("POST", document.URL, true);
+			request.onload = function (oEvent) {
+				document.getElementById("image_message").innerText +=
+					": Uploaded successfully!";
+			};
+			request.send(blob);
+		}
+	}
+</script>
+
+<body>
+	<p id="builtin_message">Show Built-in Message</p>
+	<label class="button-label red large" id="door-absence-label">不在
+		<button id="absence" onclick="showBuiltin('/absence')">不在</button>
+	</label>
+	<label class="button-label red" id="door-campus-label">学内
+		<button id="campus" onclick="showBuiltin('/campus')">学内</button>
+	</label>
+	<label class="button-label red" id="door-online-label">オンライン
+		<button id="online" onclick="showBuiltin('/online')">オンライン</button>
+	</label>
+	<br />
+	<label class="button-label blue large" id="door-bein-label">在室
+		<button id="bein" onclick="showBuiltin('/bein')">在室</button>
+	</label>
+	<label class="button-label blue" id="door-oh-label">ＯＨ
+		<button id="oh" onclick="showBuiltin('/oh')">ＯＨ</button>
+	</label>
+	<label class="button-label blue" id="door-meeting-label">ミーティング
+		<button id="meeting" onclick="showBuiltin('/meeting')">
+			ミーティング
+		</button>
+	</label>
+
+	<hr />
+	<p id="text_message">Input Text and Upload to Show</p>
+	<label class="button-label" id="upload-text-label">Send Text
+		<button id="upload" onclick="upload_text()">Send Text</button>
+	</label>
+	<br />
+	<textarea id="text" name="text" class="text" cols="25" rows="5">
+Hello, World!</textarea>
+	<br />
+
+	<hr />
+	<p id="image_message">Select Image and Upload to Show</p>
+	<label class="button-label" id="file-label">Select Image
+		<input type="file" id="file" accept="image/*" oninput="fileSelected()" />
+	</label>
+
+	<label class="button-label" id="upload-label" style="visibility: hidden">Upload
+		<button id="upload" onclick="upload()">Upload</button>
+	</label>
+
+	<br />
+	<canvas id="canvas" width="960" height="540" , style="width: 480px"></canvas>
+	<br />
+
+	<label class="button-label" id="original-label" style="visibility: hidden">Original
+		<button id="original" onclick="makeCanvasOriginal()">Original</button>
+	</label>
+
+	<label class="button-label" id="gray-label" style="visibility: hidden">4-bit Gray
+		<button id="gray" onclick="makeCanvasFlatGray()">Gray</button>
+	</label>
+
+	<label class="button-label" id="dither-label" style="visibility: hidden">Dithering
+		<button id="dither" onclick="makeCanvasDitherGray()">Dithering</button>
+	</label>
+
+	<label class="button-label" id="binary-label" style="visibility: hidden">Binary
+		<button id="binary" onclick="makeCanvasBinary()">Binary</button>
+	</label>
+</body>
+
+</html>

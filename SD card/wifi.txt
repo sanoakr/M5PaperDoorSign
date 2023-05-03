@@ -1,0 +1,3 @@
+SSID:Enter your SSID here
+PASS:Enter password here
+QR:Enter String for QR code here
