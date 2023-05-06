@@ -7,8 +7,9 @@
 #define smallTextSize 40
 #define largeTextSize 132
 
+#define nameMargin smallTextSize
 #define nameWidth 400
-#define nameHeight 100
+#define nameHeight (nameMargin + smallTextSize)
 #define nameX 0
 #define nameY 0
 //
@@ -19,19 +20,19 @@
 //
 #define boardMargin 30
 #define boardWidth fullWidth
-#define boardHeight (largeTextSize + boardMargin)
-#define boardX 0 
+#define boardHeight (largeTextSize + boardMargin * 2)
+#define boardX 0
 #define boardY nameHeight
-//
-#define msgWidth fullWidth
-#define msgHeight (fullHeight - (nameHeight+boardHeight+qrHeight))
-#define msgX 0 
-#define msgY (nameHeight + boardHeight)
 //
 #define qrWidth 300
 #define qrHeight 150
 #define qrX 0
 #define qrY (fullHeight - qrHeight)
+//
+#define msgWidth fullWidth
+#define msgHeight (fullHeight - qrHeight - nameHeight - boardHeight)
+#define msgX 0
+#define msgY (nameHeight + boardHeight)
 //
 #define buttonWidth (fullWidth - qrWidth)
 #define buttonHeight 100
@@ -93,7 +94,8 @@ void displayImageOfFileName(String fileName);
 int p_x = 0, p_y = 0;
 
 // Set Board Message
-void showBoard(int boardType, String subText = "") {
+void showBoard(int boardType, String subText = "")
+{
   // Draw Board Text
   boardCanvas.fillCanvas(0);
   boardCanvas.drawString(boardTexts[boardType], boardMargin, boardMargin);
@@ -102,30 +104,35 @@ void showBoard(int boardType, String subText = "") {
   msgCanvas.fillCanvas(0);
   if (subText == "")
     msgCanvas.drawString(boardSubTexts[boardType], boardMargin, boardMargin);
-  else {
+  else
+  {
     int nl = subText.indexOf("\\n");
-    if (nl > 0) {
+    if (nl > 0)
+    {
       String line1 = subText.substring(0, nl);
-      String line2 = subText.substring(nl+2);
-      msgCanvas.drawString(line1, boardMargin, boardMargin);
-      msgCanvas.drawString(line2, boardMargin, boardMargin + 1.5*smallTextSize);
+      String line2 = subText.substring(nl + 2);
+      msgCanvas.drawString(line1, boardMargin, 0);
+      msgCanvas.drawString(line2, boardMargin, 1.5 * smallTextSize);
     }
-    else {
-      msgCanvas.drawString(subText, boardMargin, boardMargin);
+    else
+    {
+      msgCanvas.drawString(subText, boardMargin, 0);
     }
   }
   msgCanvas.pushCanvas(msgX, msgY, UPDATE_MODE_DU4);
 }
 // Show IP & Clear Board
-void showIP(bool clear = true, int delayTime = 5000) {
+void showIP(bool clear = true, int delayTime = 5000)
+{
   // Draw IP Address
   String ipString = WiFi.localIP().toString();
   statusCanvas.drawString(ipString, boardMargin, boardMargin);
   statusCanvas.pushCanvas(statusX, statusY, UPDATE_MODE_DU4);
-  
+
   delay(delayTime);
   // Clear Board
-  if (clear) {
+  if (clear)
+  {
     boardCanvas.fillCanvas(0);
     boardCanvas.pushCanvas(boardX, boardY, UPDATE_MODE_GL16);
     msgCanvas.fillCanvas(0);
@@ -151,16 +158,16 @@ void setup()
 
   // Set Japanese Font
   canvas.drawString("Loading font ...", 270, 250);
-  canvas.pushCanvas(0,0,UPDATE_MODE_DU4);
+  canvas.pushCanvas(0, 0, UPDATE_MODE_DU4);
   Serial.println("Loading font from SD.");
   canvas.loadFont("/font.ttf", SD);
   canvas.createRender(largeTextSize, 256);
   canvas.createRender(smallTextSize, 256);
   canvas.setTextSize(smallTextSize);
   canvas.drawString("完了", 600, 250);
-  canvas.pushCanvas(0,0,UPDATE_MODE_DU4);
+  canvas.pushCanvas(0, 0, UPDATE_MODE_DU4);
   Serial.println("Loading done.");
-  
+
   // Create shutdown button canvas
   buttonCanvas.createCanvas(buttonWidth, buttonHeight);
   buttonCanvas.setTextSize(smallTextSize);
@@ -174,7 +181,7 @@ void setup()
   boardCanvas.createCanvas(boardWidth, boardHeight);
   boardCanvas.setTextSize(largeTextSize);
   // Create message canvas
-  msgCanvas.createCanvas(boardWidth, boardHeight);
+  msgCanvas.createCanvas(msgWidth, msgHeight);
   msgCanvas.setTextSize(smallTextSize);
   // Create Teams QR canvas
   qrCanvas.createCanvas(qrWidth, qrHeight);
@@ -189,19 +196,22 @@ void setup()
   {
     String line = wifiSettingFile.readStringUntil('\n');
     int location = line.indexOf("SSID:");
-    if (location >= 0 && line.length() > 5) {
+    if (location >= 0 && line.length() > 5)
+    {
       wifiIDString = line.substring(5);
       wifiIDString.trim();
     }
     line = wifiSettingFile.readStringUntil('\n');
     location = line.indexOf("PASS:");
-    if (location >= 0 && line.length() > 5) {
+    if (location >= 0 && line.length() > 5)
+    {
       wifiPWString = line.substring(5);
       wifiPWString.trim();
     }
     line = wifiSettingFile.readStringUntil('\n');
     location = line.indexOf("QR:");
-    if (location >= 0 && line.length() > 3) {
+    if (location >= 0 && line.length() > 3)
+    {
       qrString = line.substring(3);
       qrString.trim();
     }
@@ -227,28 +237,34 @@ void setup()
   server.begin();
 
   // Draw Name Text
-  nameCanvas.drawString("さのは（おそらく）", 30, 50);
+  nameCanvas.drawString("さのは（おそらく）", nameMargin, nameMargin);
   nameCanvas.pushCanvas(nameX, nameY, UPDATE_MODE_DU4);
-  
+
   // Draw Board Text
   showBoard(ABSENCE_BOARD, boardSubTexts[ABSENCE_BOARD]);
-    
+
   // Draw buttons
-  for (int i = 0; i < 6; i++) {
-    buttonCanvas.drawString(btnNames[i], i*buttonSize+10, 30);
-    buttonCanvas.drawRect(i*buttonSize, 0, buttonSize, buttonSize, WHITE);
+  for (int i = 0; i < 6; i++)
+  {
+    buttonCanvas.drawString(btnNames[i], i * buttonSize + 10, 30);
+    buttonCanvas.drawRect(i * buttonSize, 0, buttonSize, buttonSize, WHITE);
   }
   buttonCanvas.pushCanvas(buttonX, buttonY, UPDATE_MODE_DU4);
 
   // Display SSID, IP Address and QR code for this M5Paper
   canvas.drawString(wifiIDString, 540, 20);
   canvas.drawString(urlString, 540, 50);
-  //canvas.pushCanvas(0, 0, UPDATE_MODE_DU4);
-  
-  qrCanvas.drawString("Teams", qrWidth/2, qrHeight/2-20);
-  qrCanvas.drawString("   Chat", qrWidth/2, qrHeight/2+smallTextSize-20);
+  // canvas.pushCanvas(0, 0, UPDATE_MODE_DU4);
+
+  qrCanvas.drawString("Teams", qrWidth / 2, qrHeight / 2 - 20);
+  qrCanvas.drawString("   Chat", qrWidth / 2, qrHeight / 2 + smallTextSize - 20);
   qrCanvas.qrcode(qrString, 0, 0, qrHeight, 4);
   qrCanvas.pushCanvas(qrX, qrY, UPDATE_MODE_DU4);
+
+  Serial.println(nameHeight);
+  Serial.println(boardHeight);
+  Serial.println(msgHeight);
+  Serial.println(qrHeight);
 }
 
 // decode URL to UTF8 String
@@ -299,14 +315,17 @@ void loop()
       {
         line = client.readStringUntil('\n');
         Serial.println(line);
-        //Serial.println(line.length());
+        // Serial.println(line.length());
 
         // Read http header
-        if (line.startsWith("GET /")) {
+        if (line.startsWith("GET /"))
+        {
           connectionType = GET_CONNECTION;
           bool isBoard = false;
-          for (BoardType type: boardTypeList) {
-            if (line.indexOf(boardNames[type]) > 3) {
+          for (BoardType type : boardTypeList)
+          {
+            if (line.indexOf(boardNames[type]) > 3)
+            {
               getType = BOARD_GET;
               Serial.println("BOARD_GET");
               boardType = type;
@@ -314,8 +333,9 @@ void loop()
               isBoard = true;
 
               int head = line.indexOf('?');
-              if (head > 0) {
-                String text = line.substring(head+1);
+              if (head > 0)
+              {
+                String text = line.substring(head + 1);
                 text.replace(" HTTP/1.1", "");
                 text.trim();
                 if (text.length() > 0)
@@ -323,7 +343,8 @@ void loop()
               }
             }
           }
-          if (!isBoard) {
+          if (!isBoard)
+          {
             getType = FORM_GET;
             Serial.println("FORM_GET");
           }
@@ -338,7 +359,7 @@ void loop()
             fileType = JPG_FILE;
         }
 
-        if (line.length() <= 2) 
+        if (line.length() <= 2)
         { // Empty line. header finished
           switch (connectionType)
           {
@@ -347,25 +368,25 @@ void loop()
             Serial.println("GET_CONNECTION");
             switch (getType)
             {
-              case FORM_GET:
-              { // Send form.html
-                Serial.println("FORM_GET");
-                sendResponse(client, "HTTP/1.1 200 OK");
-                sendFormHTML(client);
-                break;
-              }
-              case BOARD_GET:
-              { // Send board.html
-                Serial.println("BOARD_GET");
-                Serial.println(boardTypeList[boardType]);
-                Serial.println(subText);
-                showBoard(boardType, decodeUrl(subText));
-                sendResponse(client, "HTTP/1.1 200 OK");
-                //client.println("<!DOCTYPE html><head><meta charset=\"UTF-8\"></head><body><p>Received successfully.</p></body>");
-                break;
-              }
-              default:
-                break;
+            case FORM_GET:
+            { // Send form.html
+              Serial.println("FORM_GET");
+              sendResponse(client, "HTTP/1.1 200 OK");
+              sendFormHTML(client);
+              break;
+            }
+            case BOARD_GET:
+            { // Send board.html
+              Serial.println("BOARD_GET");
+              Serial.println(boardTypeList[boardType]);
+              Serial.println(subText);
+              showBoard(boardType, decodeUrl(subText));
+              sendResponse(client, "HTTP/1.1 200 OK");
+              // client.println("<!DOCTYPE html><head><meta charset=\"UTF-8\"></head><body><p>Received successfully.</p></body>");
+              break;
+            }
+            default:
+              break;
             }
           }
           case POST_CONNECTION:
@@ -376,34 +397,34 @@ void loop()
             case PNG_FILE:
             { // Receive PNG file
               Serial.println("PNG_FILE");
-              //statusCanvas.drawString("Start receving PNG file.", 0, 0);
-              //statusCanvas.pushCanvas(statusX, statusY, UPDATE_MODE_DU4);
+              // statusCanvas.drawString("Start receving PNG file.", 0, 0);
+              // statusCanvas.pushCanvas(statusX, statusY, UPDATE_MODE_DU4);
               receivePostFile(client, "/received.png");
               break;
             }
             case JPG_FILE:
             { // Receive JPG file (not used)
               Serial.println("JPG_FILE");
-              //statusCanvas.drawString("Start receving JPG file.", 0, 0);
-              //statusCanvas.pushCanvas(statusX, statusY, UPDATE_MODE_DU4);
+              // statusCanvas.drawString("Start receving JPG file.", 0, 0);
+              // statusCanvas.pushCanvas(statusX, statusY, UPDATE_MODE_DU4);
               receivePostFile(client, "/received.jpg");
               break;
             }
             default:
             { // Receive TXT file (not used)
               Serial.println("Text file");
-              //statusCanvas.drawString("Start receving TXT file.", 0, 0);
-              //statusCanvas.pushCanvas(statusX, statusY, UPDATE_MODE_DU4);
+              // statusCanvas.drawString("Start receving TXT file.", 0, 0);
+              // statusCanvas.pushCanvas(statusX, statusY, UPDATE_MODE_DU4);
               receiveFormText(client);
             }
             }
             sendResponse(client, "HTTP/1.1 200 OK");
-            //client.println("<!DOCTYPE html><head><meta charset=\"UTF-8\"></head><body><p>Received successfully.</p></body>");
+            // client.println("<!DOCTYPE html><head><meta charset=\"UTF-8\"></head><body><p>Received successfully.</p></body>");
           }
           default:
           { // Other request
             sendResponse(client, "HTTP/1.1 404 Not Found");
-            //client.println("<!DOCTYPE html><head><meta charset=\"UTF-8\"></head><body><p>404 Not Found</p></body>");
+            // client.println("<!DOCTYPE html><head><meta charset=\"UTF-8\"></head><body><p>404 Not Found</p></body>");
           }
           }
           delay(1);
@@ -427,29 +448,34 @@ void loop()
   }
 
   // Touch detection for button
-  if (M5.TP.avaliable()) {
-    if (!M5.TP.isFingerUp()) {
+  if (M5.TP.avaliable())
+  {
+    if (!M5.TP.isFingerUp())
+    {
       M5.TP.update();
 
       bool is_update = false;
       tp_finger_t FingerItem = M5.TP.readFinger(0);
-      if (p_x != FingerItem.x || p_y != FingerItem.y) {
+      if (p_x != FingerItem.x || p_y != FingerItem.y)
+      {
         p_x = FingerItem.x;
         p_y = FingerItem.y;
         is_update = true;
       }
 
-      if (is_update) {
-        for (int i = 0; i < 6; i++) {
-          if (p_x > buttonX + i*buttonSize && p_x < buttonX + (i+1)*buttonSize
-            && p_y > buttonY && p_y < (buttonY + buttonHeight)) {
+      if (is_update)
+      {
+        for (int i = 0; i < 6; i++)
+        {
+          if (p_x > buttonX + i * buttonSize && p_x < buttonX + (i + 1) * buttonSize && p_y > buttonY && p_y < (buttonY + buttonHeight))
+          {
 
             showBoard(i);
             Serial.println(boardNames[i]);
           }
         }
-        if (p_x > statusX && p_x < statusX + statusWidth
-          && p_y > statusY && p_y < (statusY + statusHeight)) {
+        if (p_x > statusX && p_x < statusX + statusWidth && p_y > statusY && p_y < (statusY + statusHeight))
+        {
 
           showIP(true);
         }
@@ -495,7 +521,7 @@ void sendFormHTML(WiFiClient client)
   }
   else
   { // when form.html not found
-    //client.println("<!DOCTYPE html><head><meta charset=\"UTF-8\"></head><body><p>No html file!</p></body>");
+    // client.println("<!DOCTYPE html><head><meta charset=\"UTF-8\"></head><body><p>No html file!</p></body>");
   }
   client.flush();
 }
