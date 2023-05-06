@@ -69,7 +69,6 @@ enum GetType
 };
 enum BoardType
 {
-  FORM_BOARD,
   ABSENCE_BOARD,
   CAMPUS_BOARD,
   ONLINE_BOARD,
@@ -77,11 +76,11 @@ enum BoardType
   OH_BOARD,
   MEETING_BOARD
 };
-BoardType boardTypeList[] = {FORM_BOARD, ABSENCE_BOARD, CAMPUS_BOARD, ONLINE_BOARD, BEIN_BOARD, OH_BOARD, MEETING_BOARD};
-String boardNames[] = {"/form", "/absence", "/campus", "/online", "/bein", "/oh", "/meeting"};
-String boardTexts[] = {"", "不在です", "学内にいます", "オンライン中", "在室してます", "オフィスアワー", "ミーティング中"};
-String boardSubTexts[] = {"", "", "", "オンライン会議・オンライン講義中です", "", "", "（在室してます）"};
-String btnNames[] = {"", "不在", "学内", "OL", "在室", "OH", "MTG"};
+BoardType boardTypeList[] = {ABSENCE_BOARD, CAMPUS_BOARD, ONLINE_BOARD, BEIN_BOARD, OH_BOARD, MEETING_BOARD};
+String boardNames[] = {"/absence", "/campus", "/online", "/bein", "/oh", "/meeting"};
+String boardTexts[] = {"不在です", "学内にいます", "オンライン中", "在室してます", "オフィスアワー", "ミーティング中"};
+String boardSubTexts[] = {"", "", "オンライン会議・オンライン講義中です", "", "", "（在室してます）"};
+String btnNames[] = {"不在", "学内", "OL", "在室", "OH", "MTG"};
 
 void sendResponse(WiFiClient client, String firstLine);
 void sendFormHTML(WiFiClient client);
@@ -94,17 +93,28 @@ void displayImageOfFileName(String fileName);
 int p_x = 0, p_y = 0;
 
 // Set Board Message
-void showBoard(int boardType, bool subText) {
+void showBoard(int boardType, String subText = "") {
   // Draw Board Text
   boardCanvas.fillCanvas(0);
   boardCanvas.drawString(boardTexts[boardType], boardMargin, boardMargin);
   boardCanvas.pushCanvas(boardX, boardY, UPDATE_MODE_DU4);
 
-  if (subText) {
-    msgCanvas.fillCanvas(0);
+  msgCanvas.fillCanvas(0);
+  if (subText == "")
     msgCanvas.drawString(boardSubTexts[boardType], boardMargin, boardMargin);
-    msgCanvas.pushCanvas(msgX, msgY, UPDATE_MODE_DU4);
+  else {
+    int nl = subText.indexOf("\\n");
+    if (nl > 0) {
+      String line1 = subText.substring(0, nl);
+      String line2 = subText.substring(nl+2);
+      msgCanvas.drawString(line1, boardMargin, boardMargin);
+      msgCanvas.drawString(line2, boardMargin, boardMargin + 1.5*smallTextSize);
+    }
+    else {
+      msgCanvas.drawString(subText, boardMargin, boardMargin);
+    }
   }
+  msgCanvas.pushCanvas(msgX, msgY, UPDATE_MODE_DU4);
 }
 // Show IP & Clear Board
 void showIP(bool clear = true, int delayTime = 5000) {
@@ -123,7 +133,7 @@ void showIP(bool clear = true, int delayTime = 5000) {
   }
   statusCanvas.fillCanvas(0);
   statusCanvas.pushCanvas(statusX, statusY, UPDATE_MODE_GL16);
-  showBoard(ABSENCE_BOARD, true);
+  showBoard(ABSENCE_BOARD);
 }
 
 void setup()
@@ -217,15 +227,15 @@ void setup()
   server.begin();
 
   // Draw Name Text
-  nameCanvas.drawString("さのは（おそらく）", 30, 30);
+  nameCanvas.drawString("さのは（おそらく）", 30, 50);
   nameCanvas.pushCanvas(nameX, nameY, UPDATE_MODE_DU4);
   
   // Draw Board Text
-  showBoard(ONLINE_BOARD, true);
+  showBoard(ABSENCE_BOARD, boardSubTexts[ABSENCE_BOARD]);
     
   // Draw buttons
   for (int i = 0; i < 6; i++) {
-    buttonCanvas.drawString(btnNames[i+1], i*buttonSize+10, 30);
+    buttonCanvas.drawString(btnNames[i], i*buttonSize+10, 30);
     buttonCanvas.drawRect(i*buttonSize, 0, buttonSize, buttonSize, WHITE);
   }
   buttonCanvas.pushCanvas(buttonX, buttonY, UPDATE_MODE_DU4);
@@ -241,6 +251,34 @@ void setup()
   qrCanvas.pushCanvas(qrX, qrY, UPDATE_MODE_DU4);
 }
 
+// decode URL to UTF8 String
+String decodeUrl(String url)
+{
+  String decoded = "";
+  char temp[] = "0x00";
+  unsigned int code;
+  for (int i = 0; i < url.length(); i++)
+  {
+    if (url[i] == '%')
+    {
+      temp[2] = url[i + 1];
+      temp[3] = url[i + 2];
+      code = strtoul(temp, NULL, 16);
+      decoded += (char)code;
+      i += 2;
+    }
+    else if (url[i] == '+')
+    {
+      decoded += ' ';
+    }
+    else
+    {
+      decoded += url[i];
+    }
+  }
+  return decoded;
+}
+
 void loop()
 {
   // Wait client in main loop
@@ -251,7 +289,8 @@ void loop()
     enum ConnectionType connectionType = UNDEFINED_CONNECTION;
     enum FileType fileType = UNDEFINED_FILE;
     enum GetType getType = UNDEFINED_GET;
-    enum BoardType boardType = FORM_BOARD;
+    enum BoardType boardType = ABSENCE_BOARD;
+    String subText = boardSubTexts[boardType];
     String line = "";
 
     while (client.connected())
@@ -265,15 +304,26 @@ void loop()
         // Read http header
         if (line.startsWith("GET /")) {
           connectionType = GET_CONNECTION;
+          bool isBoard = false;
           for (BoardType type: boardTypeList) {
             if (line.indexOf(boardNames[type]) > 3) {
               getType = BOARD_GET;
-              boardType = type;
               Serial.println("BOARD_GET");
-              break;
+              boardType = type;
+              subText = boardSubTexts[boardType];
+              isBoard = true;
+
+              int head = line.indexOf('?');
+              if (head > 0) {
+                String text = line.substring(head+1);
+                text.replace(" HTTP/1.1", "");
+                text.trim();
+                if (text.length() > 0)
+                  subText = text;
+              }
             }
           }
-          if (boardType == boardTypeList[0] or line.length() == 5) {
+          if (!isBoard) {
             getType = FORM_GET;
             Serial.println("FORM_GET");
           }
@@ -297,24 +347,26 @@ void loop()
             Serial.println("GET_CONNECTION");
             switch (getType)
             {
-            case FORM_GET:
-            {
-              sendResponse(client, "HTTP/1.1 200 OK");
-              sendFormHTML(client);
-              //statusCanvas.drawString("form.html sent.", 0, 0);
-              //statusCanvas.pushCanvas(statusX, statusY, UPDATE_MODE_DU4);
-              break;
+              case FORM_GET:
+              { // Send form.html
+                Serial.println("FORM_GET");
+                sendResponse(client, "HTTP/1.1 200 OK");
+                sendFormHTML(client);
+                break;
+              }
+              case BOARD_GET:
+              { // Send board.html
+                Serial.println("BOARD_GET");
+                Serial.println(boardTypeList[boardType]);
+                Serial.println(subText);
+                showBoard(boardType, decodeUrl(subText));
+                sendResponse(client, "HTTP/1.1 200 OK");
+                //client.println("<!DOCTYPE html><head><meta charset=\"UTF-8\"></head><body><p>Received successfully.</p></body>");
+                break;
+              }
+              default:
+                break;
             }
-            case BOARD_GET:
-            {
-              showBoard(boardType, true);
-              break;
-            }
-            default:
-              break;
-            }
-            sendResponse(client, "HTTP/1.1 200 OK");
-            //client.println("<!DOCTYPE html><head><meta charset=\"UTF-8\"></head><body><p>Received successfully.</p></body>");
           }
           case POST_CONNECTION:
           { // Receive form text or file
@@ -392,8 +444,8 @@ void loop()
           if (p_x > buttonX + i*buttonSize && p_x < buttonX + (i+1)*buttonSize
             && p_y > buttonY && p_y < (buttonY + buttonHeight)) {
 
-            showBoard(i+1, true);
-            Serial.println(boardNames[i+1]);
+            showBoard(i);
+            Serial.println(boardNames[i]);
           }
         }
         if (p_x > statusX && p_x < statusX + statusWidth

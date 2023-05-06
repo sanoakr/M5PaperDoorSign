@@ -72,10 +72,11 @@
 	const MAX_HEIGHT = 540;
 
 	function showBuiltin(board) {
+		let text = document.getElementById("subtext").value;
 		let request = new XMLHttpRequest();
-		request.open("GET", board, true);
+		request.open("GET", board + '?' + text, true);
 		request.onload = function (oEvent) {
-			document.getElementById("builtin_message").innerText += ": Show " + board;
+			document.getElementById("subtext").value = "";
 		};
 		request.send();
 	}
@@ -228,10 +229,6 @@
 		}
 	}
 
-	function upload_text() {
-		document.getElementById("text").value = "Hello, World!!!";
-	}
-
 	function upload() {
 		let canvas = document.getElementById("canvas");
 		let base64 = canvas.toDataURL("image/png");
@@ -269,7 +266,7 @@
 </script>
 
 <body>
-	<p id="builtin_message">Show Built-in Message</p>
+	<p id="builtin_message">Display Built-in Message</p>
 	<label class="button-label red large" id="door-absence-label">不在
 		<button id="absence" onclick="showBuiltin('/absence')">不在</button>
 	</label>
@@ -291,17 +288,12 @@
 			ミーティング
 		</button>
 	</label>
-
-	<hr />
-	<p id="text_message">Input Text and Upload to Show</p>
-	<label class="button-label" id="upload-text-label">Send Text
-		<button id="upload" onclick="upload_text()">Send Text</button>
-	</label>
-	<br />
-	<textarea id="text" name="text" class="text" cols="25" rows="5">
-Hello, World!</textarea>
-	<br />
-
+	<p id="text_message">SubText Message<br />
+		<textarea id="subtext" name="subtext" class="text" cols="40" rows="2"></textarea><br />
+		・ Default subtext message if empty.<br />
+		・ New line with '\n' (max two lines).
+	</p>
+<!--
 	<hr />
 	<p id="image_message">Select Image and Upload to Show</p>
 	<label class="button-label" id="file-label">Select Image
@@ -331,6 +323,8 @@ Hello, World!</textarea>
 	<label class="button-label" id="binary-label" style="visibility: hidden">Binary
 		<button id="binary" onclick="makeCanvasBinary()">Binary</button>
 	</label>
+-->
+	<br />
 </body>
 
 </html>
