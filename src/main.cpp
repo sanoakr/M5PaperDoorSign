@@ -1,6 +1,7 @@
 #include <M5EPD.h>
 #include <WiFi.h>
 #include <WebServer.h>
+#include "time.h"
 
 #define fullWidth 960
 #define fullHeight 540
@@ -93,6 +94,36 @@ void displayImageOfFileName(String fileName);
 // Touch Point
 int p_x = 0, p_y = 0;
 
+// set RTC from NTP
+rtc_time_t RTCtime;
+rtc_date_t RTCdate;
+char timeStrBuff(64);
+
+static const int JST = 3600 * 9;
+static const char *wd[7] = {"Sun", "Mon", "Tue", "Wed", "Thr", "Fri", "Sat"};
+
+RTC_SLOW_ATTR bool ntpDataFlag = false;
+
+const char* ssid = "ssid";
+const char* password = "password";
+time_t t;
+struct tm *tm;
+
+void setupTime() {
+  t = time(NULL);
+  tm = localtime(&t);
+
+  RTCtime.hour = tm->tm_hour;
+  RTCtime.min = tm->tm_min;
+  RTCtime.sec = tm->tm_sec;
+  M5.RTC.setTime(&RTCtime);
+
+  RTCdate.year = tm->tm_year + 1900;
+  RTCdate.mon = tm->tm_mon + 1;
+  RTCdate.day = tm->tm_mday;
+  M5.RTC.setDate(&RTCdate);
+}
+
 // Set Board Message
 void showBoard(int boardType, String subText = "")
 {
@@ -124,9 +155,14 @@ void showBoard(int boardType, String subText = "")
 // Show IP & Clear Board
 void showIP(bool clear = true, int delayTime = 5000)
 {
+  // DateTime
+  //M5.RTC.getTime(&RTCtime);
+  //M5.RTC.getDate(&RTCdate);
+  
   // Draw IP Address
   String ipString = WiFi.localIP().toString();
   statusCanvas.drawString(ipString, boardMargin, boardMargin);
+  //statusCanvas.drawString(&timeStrBuff, boardMargin, boardMargin);
   statusCanvas.pushCanvas(statusX, statusY, UPDATE_MODE_DU4);
 
   delay(delayTime);
@@ -147,6 +183,7 @@ void setup()
 {
   // Initialize M5Paper
   M5.begin();
+  M5.RTC.begin();
   M5.EPD.SetRotation(0);
   M5.EPD.Clear(true);
 
@@ -228,6 +265,15 @@ void setup()
     Serial.print(".");
   }
 
+  // set RTC from NTP
+  configTime(JST, 0, "ntp.st.ryukoku.ac.jp", "ntp.nict.jp");
+  delay(2000);
+  setupTime();
+  delay(2000);
+  sprintf(&timeStrBuff, "%d/%02d/%02d (%s) %02d:%02d:%02d\n",
+                RTCdate.year, RTCdate.mon, RTCdate.day,wd[RTCdate.week],
+                RTCtime.hour, RTCtime.min, RTCtime.sec);
+
   // Get IP Address and create URL
   IPAddress address = WiFi.localIP();
   String addressString = address.toString();
@@ -235,6 +281,9 @@ void setup()
 
   // Start web server
   server.begin();
+
+  // Draw Status
+  showIP();
 
   // Draw Name Text
   nameCanvas.drawString("さのは（おそらく）", nameMargin, nameMargin);
@@ -252,8 +301,8 @@ void setup()
   buttonCanvas.pushCanvas(buttonX, buttonY, UPDATE_MODE_DU4);
 
   // Display SSID, IP Address and QR code for this M5Paper
-  canvas.drawString(wifiIDString, 540, 20);
-  canvas.drawString(urlString, 540, 50);
+  //canvas.drawString(wifiIDString, fullWidth/2, fullHeight-2*smallTextSize);
+  //canvas.drawString(urlString, fullWidth/2, fullHeight-smallTextSize);
   // canvas.pushCanvas(0, 0, UPDATE_MODE_DU4);
 
   qrCanvas.drawString("Teams", qrWidth / 2, qrHeight / 2 - 20);
@@ -297,6 +346,12 @@ String decodeUrl(String url)
 
 void loop()
 {
+  M5.update();
+  // reboot
+  if (M5.BtnP.wasPressed()) {
+    setup();
+  }
+
   // Wait client in main loop
   WiFiClient client = server.available();
 
@@ -494,6 +549,7 @@ void loop()
       */
     }
   }
+  delay(100);
 }
 
 // Return http response header
