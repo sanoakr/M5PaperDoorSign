@@ -91,9 +91,14 @@ void receiveFormFile(WiFiClient client);
 void receivePostFile(WiFiClient client, String fileName);
 void displayImageOfFileName(String fileName);
 
+String wifiIDString = "wifiID";
+String wifiPWString = "wifiPW";
+String qrString = "qrString";
+
 // Touch Point
 int p_x = 0, p_y = 0;
 
+/*
 // set RTC from NTP
 rtc_time_t RTCtime;
 rtc_date_t RTCdate;
@@ -103,9 +108,10 @@ static const int JST = 3600 * 9;
 static const char *wd[7] = {"Sun", "Mon", "Tue", "Wed", "Thr", "Fri", "Sat"};
 
 RTC_SLOW_ATTR bool ntpDataFlag = false;
-
+*/
 const char* ssid = "ssid";
 const char* password = "password";
+/*
 time_t t;
 struct tm *tm;
 
@@ -123,14 +129,14 @@ void setupTime() {
   RTCdate.day = tm->tm_mday;
   M5.RTC.setDate(&RTCdate);
 }
-
+*/
 // Set Board Message
 void showBoard(int boardType, String subText = "")
 {
   // Draw Board Text
   boardCanvas.fillCanvas(0);
   boardCanvas.drawString(boardTexts[boardType], boardMargin, boardMargin);
-  boardCanvas.pushCanvas(boardX, boardY, UPDATE_MODE_DU4);
+  boardCanvas.pushCanvas(boardX, boardY, UPDATE_MODE_GLR16);
 
   msgCanvas.fillCanvas(0);
   if (subText == "")
@@ -150,7 +156,7 @@ void showBoard(int boardType, String subText = "")
       msgCanvas.drawString(subText, boardMargin, 0);
     }
   }
-  msgCanvas.pushCanvas(msgX, msgY, UPDATE_MODE_DU4);
+  msgCanvas.pushCanvas(msgX, msgY, UPDATE_MODE_GLR16);
 }
 // Show IP & Clear Board
 void showIP(bool clear = true, int delayTime = 5000)
@@ -169,6 +175,7 @@ void showIP(bool clear = true, int delayTime = 5000)
   // Clear Board
   if (clear)
   {
+    //setup();
     boardCanvas.fillCanvas(0);
     boardCanvas.pushCanvas(boardX, boardY, UPDATE_MODE_GL16);
     msgCanvas.fillCanvas(0);
@@ -177,6 +184,26 @@ void showIP(bool clear = true, int delayTime = 5000)
   statusCanvas.fillCanvas(0);
   statusCanvas.pushCanvas(statusX, statusY, UPDATE_MODE_GL16);
   showBoard(ABSENCE_BOARD);
+}
+
+void drawBtnQR() {
+  // Draw buttons
+  for (int i = 0; i < 6; i++)
+  {
+    buttonCanvas.drawString(btnNames[i], i * buttonSize + 10, 30);
+    buttonCanvas.drawRect(i * buttonSize, 0, buttonSize, buttonSize, WHITE);
+  }
+  buttonCanvas.pushCanvas(buttonX, buttonY, UPDATE_MODE_GLR16);
+
+  // Display SSID, IP Address and QR code for this M5Paper
+  //canvas.drawString(wifiIDString, fullWidth/2, fullHeight-2*smallTextSize);
+  //canvas.drawString(urlString, fullWidth/2, fullHeight-smallTextSize);
+  // canvas.pushCanvas(0, 0, UPDATE_MODE_DU4);
+
+  qrCanvas.drawString("Teams", qrWidth / 2, qrHeight / 2 - 20);
+  qrCanvas.drawString("   Chat", qrWidth / 2, qrHeight / 2 + smallTextSize - 20);
+  qrCanvas.qrcode(qrString, 0, 0, qrHeight, 4);
+  qrCanvas.pushCanvas(qrX, qrY, UPDATE_MODE_GLR16);
 }
 
 void setup()
@@ -225,9 +252,6 @@ void setup()
   qrCanvas.setTextSize(smallTextSize);
 
   // Load WiFi SSID and PASS from "wifi.txt" in SD card
-  String wifiIDString = "wifiID";
-  String wifiPWString = "wifiPW";
-  String qrString = "qrString";
   File wifiSettingFile = SD.open("/wifi.txt");
   if (wifiSettingFile)
   {
@@ -264,7 +288,7 @@ void setup()
     delay(500);
     Serial.print(".");
   }
-
+  /*
   // set RTC from NTP
   configTime(JST, 0, "ntp.st.ryukoku.ac.jp", "ntp.nict.jp");
   delay(2000);
@@ -273,17 +297,19 @@ void setup()
   sprintf(&timeStrBuff, "%d/%02d/%02d (%s) %02d:%02d:%02d\n",
                 RTCdate.year, RTCdate.mon, RTCdate.day,wd[RTCdate.week],
                 RTCtime.hour, RTCtime.min, RTCtime.sec);
-
+  */
   // Get IP Address and create URL
   IPAddress address = WiFi.localIP();
   String addressString = address.toString();
   String urlString = "http://" + addressString + "/";
 
   // Start web server
+  //server.stop();
+  //delay(2000);
   server.begin();
 
   // Draw Status
-  showIP();
+  //showIP();
 
   // Draw Name Text
   nameCanvas.drawString("さのは（おそらく）", nameMargin, nameMargin);
@@ -292,6 +318,8 @@ void setup()
   // Draw Board Text
   showBoard(ABSENCE_BOARD, boardSubTexts[ABSENCE_BOARD]);
 
+  drawBtnQR();
+  /*
   // Draw buttons
   for (int i = 0; i < 6; i++)
   {
@@ -309,6 +337,7 @@ void setup()
   qrCanvas.drawString("   Chat", qrWidth / 2, qrHeight / 2 + smallTextSize - 20);
   qrCanvas.qrcode(qrString, 0, 0, qrHeight, 4);
   qrCanvas.pushCanvas(qrX, qrY, UPDATE_MODE_DU4);
+  */
 
   Serial.println(nameHeight);
   Serial.println(boardHeight);
@@ -346,11 +375,11 @@ String decodeUrl(String url)
 
 void loop()
 {
-  M5.update();
-  // reboot
-  if (M5.BtnP.wasPressed()) {
-    setup();
-  }
+  //M5.update();
+  // resetup
+  //if (M5.BtnP.wasPressed()) {
+  //  setup();
+  //}
 
   // Wait client in main loop
   WiFiClient client = server.available();
@@ -524,15 +553,14 @@ void loop()
         {
           if (p_x > buttonX + i * buttonSize && p_x < buttonX + (i + 1) * buttonSize && p_y > buttonY && p_y < (buttonY + buttonHeight))
           {
-
             showBoard(i);
             Serial.println(boardNames[i]);
           }
         }
         if (p_x > statusX && p_x < statusX + statusWidth && p_y > statusY && p_y < (statusY + statusHeight))
         {
-
           showIP(true);
+          drawBtnQR();
         }
       }
       /*
