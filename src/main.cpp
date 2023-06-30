@@ -187,6 +187,10 @@ void showIP(bool clear = true, int delayTime = 5000)
 }
 
 void drawBtnQR() {
+  // Draw Name Text
+  nameCanvas.drawString("さのは（おそらく）", nameMargin, nameMargin);
+  nameCanvas.pushCanvas(nameX, nameY, UPDATE_MODE_GLR16);
+
   // Draw buttons
   for (int i = 0; i < 6; i++)
   {
@@ -310,10 +314,6 @@ void setup()
 
   // Draw Status
   //showIP();
-
-  // Draw Name Text
-  nameCanvas.drawString("さのは（おそらく）", nameMargin, nameMargin);
-  nameCanvas.pushCanvas(nameX, nameY, UPDATE_MODE_DU4);
 
   // Draw Board Text
   showBoard(ABSENCE_BOARD, boardSubTexts[ABSENCE_BOARD]);
