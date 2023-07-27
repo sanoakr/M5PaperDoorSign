@@ -130,9 +130,21 @@ void setupTime() {
   M5.RTC.setDate(&RTCdate);
 }
 */
+// Clear Board
+void clearBoard()
+{
+  // Draw Board Text
+  boardCanvas.fillCanvas(0);
+  boardCanvas.pushCanvas(boardX, boardY, UPDATE_MODE_GLR16);
+
+  msgCanvas.fillCanvas(0);
+  msgCanvas.pushCanvas(msgX, msgY, UPDATE_MODE_GLR16);
+}
 // Set Board Message
 void showBoard(int boardType, String subText = "")
 {
+  // Clear Board
+  clearBoard();
   // Draw Board Text
   boardCanvas.fillCanvas(0);
   boardCanvas.drawString(boardTexts[boardType], boardMargin, boardMargin);
@@ -158,7 +170,7 @@ void showBoard(int boardType, String subText = "")
   }
   msgCanvas.pushCanvas(msgX, msgY, UPDATE_MODE_GLR16);
 }
-// Show IP & Clear Board
+// Show IP
 void showIP(bool clear = true, int delayTime = 5000)
 {
   // DateTime
@@ -175,11 +187,7 @@ void showIP(bool clear = true, int delayTime = 5000)
   // Clear Board
   if (clear)
   {
-    //setup();
-    boardCanvas.fillCanvas(0);
-    boardCanvas.pushCanvas(boardX, boardY, UPDATE_MODE_GL16);
-    msgCanvas.fillCanvas(0);
-    msgCanvas.pushCanvas(msgX, msgY, UPDATE_MODE_GL16);
+    clearBoard();
   }
   statusCanvas.fillCanvas(0);
   statusCanvas.pushCanvas(statusX, statusY, UPDATE_MODE_GL16);
@@ -553,7 +561,9 @@ void loop()
         {
           if (p_x > buttonX + i * buttonSize && p_x < buttonX + (i + 1) * buttonSize && p_y > buttonY && p_y < (buttonY + buttonHeight))
           {
+            clearBoard();
             showBoard(i);
+            drawBtnQR();
             Serial.println(boardNames[i]);
           }
         }
